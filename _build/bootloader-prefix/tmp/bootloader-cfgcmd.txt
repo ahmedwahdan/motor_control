@@ -1,0 +1,1 @@
+cmd='/usr/local/bin/cmake;-DSDKCONFIG=/home/wahdan/Desktop/amazon-freertos/_build/sdkconfig;-DIDF_PATH=/home/wahdan/Desktop/amazon-freertos/vendors/espressif/esp-idf;-DSECURE_BOOT_SIGNING_KEY=/home/wahdan/Desktop/amazon-freertos;-DEXTRA_COMPONENT_DIRS=/home/wahdan/Desktop/amazon-freertos/vendors/espressif/esp-idf/components/bootloader;-GNinja;<SOURCE_DIR><SOURCE_SUBDIR>'

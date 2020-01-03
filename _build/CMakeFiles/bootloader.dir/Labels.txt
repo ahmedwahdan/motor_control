@@ -1,0 +1,13 @@
+# Target labels
+ bootloader
+# Source files and their labels
+/home/wahdan/Desktop/amazon-freertos/_build/CMakeFiles/bootloader
+/home/wahdan/Desktop/amazon-freertos/_build/CMakeFiles/bootloader.rule
+/home/wahdan/Desktop/amazon-freertos/_build/CMakeFiles/bootloader-complete.rule
+/home/wahdan/Desktop/amazon-freertos/_build/bootloader-prefix/src/bootloader-stamp/bootloader-install.rule
+/home/wahdan/Desktop/amazon-freertos/_build/bootloader-prefix/src/bootloader-stamp/bootloader-mkdir.rule
+/home/wahdan/Desktop/amazon-freertos/_build/bootloader-prefix/src/bootloader-stamp/bootloader-download.rule
+/home/wahdan/Desktop/amazon-freertos/_build/bootloader-prefix/src/bootloader-stamp/bootloader-update.rule
+/home/wahdan/Desktop/amazon-freertos/_build/bootloader-prefix/src/bootloader-stamp/bootloader-patch.rule
+/home/wahdan/Desktop/amazon-freertos/_build/bootloader-prefix/src/bootloader-stamp/bootloader-configure.rule
+/home/wahdan/Desktop/amazon-freertos/_build/bootloader-prefix/src/bootloader-stamp/bootloader-build.rule

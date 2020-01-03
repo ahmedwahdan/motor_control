@@ -100,9 +100,7 @@ void vApplicationDaemonTaskStartupHook( void )
 
 #include "time.h"
 #include "sys/time.h"
-esp_err_t esp_bt_gap_ssp_confirm_reply(esp_bd_addr_t bd_addr, bool accept);
-esp_err_t esp_bt_gap_set_security_param(esp_bt_sp_param_t param_type,
-                                        void *value, uint8_t len);
+
 #define SPP_TAG "SPP_ACCEPTOR_DEMO"
 #define SPP_SERVER_NAME "SPP_SERVER"
 #define EXCAMPLE_DEVICE_NAME "ESP_SPP_BT"

@@ -1,0 +1,13 @@
+# Target labels
+ mconf-idf
+# Source files and their labels
+/home/wahdan/Desktop/amazon-freertos/_build/CMakeFiles/mconf-idf
+/home/wahdan/Desktop/amazon-freertos/_build/CMakeFiles/mconf-idf.rule
+/home/wahdan/Desktop/amazon-freertos/_build/CMakeFiles/mconf-idf-complete.rule
+/home/wahdan/Desktop/amazon-freertos/_build/mconf-idf-prefix/src/mconf-idf-stamp/mconf-idf-install.rule
+/home/wahdan/Desktop/amazon-freertos/_build/mconf-idf-prefix/src/mconf-idf-stamp/mconf-idf-mkdir.rule
+/home/wahdan/Desktop/amazon-freertos/_build/mconf-idf-prefix/src/mconf-idf-stamp/mconf-idf-download.rule
+/home/wahdan/Desktop/amazon-freertos/_build/mconf-idf-prefix/src/mconf-idf-stamp/mconf-idf-update.rule
+/home/wahdan/Desktop/amazon-freertos/_build/mconf-idf-prefix/src/mconf-idf-stamp/mconf-idf-patch.rule
+/home/wahdan/Desktop/amazon-freertos/_build/mconf-idf-prefix/src/mconf-idf-stamp/mconf-idf-configure.rule
+/home/wahdan/Desktop/amazon-freertos/_build/mconf-idf-prefix/src/mconf-idf-stamp/mconf-idf-build.rule

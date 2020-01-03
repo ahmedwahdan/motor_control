@@ -23,293 +23,42 @@
  * http://www.FreeRTOS.org
  */
 
-#include "iot_config.h"
+
 
 /* FreeRTOS includes. */
 
 #include "FreeRTOS.h"
-#include "task.h"
 
-/* Demo includes */
-#include "aws_demo.h"
-#include "aws_dev_mode_key_provisioning.h"
 
-/* AWS System includes. */
-#include "bt_hal_manager.h"
-#include "iot_system_init.h"
-#include "iot_logging_task.h"
 
-#include "nvs_flash.h"
-#if !AFR_ESP_LWIP
-#include "FreeRTOS_IP.h"
-#include "FreeRTOS_Sockets.h"
-#endif
 
-#include "esp_system.h"
-#include "esp_wifi.h"
-#include "esp_interface.h"
-#include "esp_bt.h"
-#if CONFIG_NIMBLE_ENABLED == 1
-    #include "esp_nimble_hci.h"
-#else
-    #include "esp_gap_ble_api.h"
-    #include "esp_bt_main.h"
-#endif
 
-#include "driver/uart.h"
-#include "aws_application_version.h"
-#include "tcpip_adapter.h"
 
-#include "iot_network_manager_private.h"
 
-#if BLE_ENABLED
-    #include "bt_hal_manager_adapter_ble.h"
-    #include "bt_hal_manager.h"
-    #include "bt_hal_gatt_server.h"
 
-    #include "iot_ble.h"
-    #include "iot_ble_config.h"
-    #include "iot_ble_wifi_provisioning.h"
-    #include "iot_ble_numericComparison.h"
-#endif
 
-/* Logging Task Defines. */
-#define mainLOGGING_MESSAGE_QUEUE_LENGTH    ( 32 )
-#define mainLOGGING_TASK_STACK_SIZE         ( configMINIMAL_STACK_SIZE * 4 )
-#define mainDEVICE_NICK_NAME                "Espressif_Demo"
 
-QueueHandle_t spp_uart_queue = NULL;
 
-/* Static arrays for FreeRTOS+TCP stack initialization for Ethernet network connections
- * are use are below. If you are using an Ethernet connection on your MCU device it is
- * recommended to use the FreeRTOS+TCP stack. The default values are defined in
- * FreeRTOSConfig.h. */
 
-/**
- * @brief Initializes the board.
- */
-static void prvMiscInitialization( void );
-
-#if BLE_ENABLED
-/* Initializes bluetooth */
-    static esp_err_t prvBLEStackInit( void );
-    /** Helper function to teardown BLE stack. **/
-    esp_err_t xBLEStackTeardown( void );
-    static void spp_uart_init( void );
-#endif
 
 /*-----------------------------------------------------------*/
 
 /**
  * @brief Application runtime entry point.
  */
-int app_main( void )
-{
-    /* Perform any hardware initialization that does not require the RTOS to be
-     * running.  */
 
-    prvMiscInitialization();
-
-    if( SYSTEM_Init() == pdPASS )
-    {
-        /* A simple example to demonstrate key and certificate provisioning in
-         * microcontroller flash using PKCS#11 interface. This should be replaced
-         * by production ready key provisioning mechanism. */
-        vDevModeKeyProvisioning();
-
-        #if BLE_ENABLED
-            /* Initialize BLE. */
-            if( prvBLEStackInit() != ESP_OK )
-            {
-                configPRINTF( ( "Failed to initialize the bluetooth stack\n " ) );
-
-                while( 1 )
-                {
-                }
-            }
-        #else
-            ESP_ERROR_CHECK( esp_bt_controller_mem_release( ESP_BT_MODE_CLASSIC_BT ) );
-            ESP_ERROR_CHECK( esp_bt_controller_mem_release( ESP_BT_MODE_BLE ) );
-        #endif /* if BLE_ENABLED */
-        /* Run all demos. */
-        DEMO_RUNNER_RunDemos();
-    }
-
-    /* Start the scheduler.  Initialization that requires the OS to be running,
-     * including the WiFi initialization, is performed in the RTOS daemon task
-     * startup hook. */
-    /* Following is taken care by initialization code in ESP IDF */
-    /* vTaskStartScheduler(); */
-    return 0;
-}
-
-/*-----------------------------------------------------------*/
-extern void vApplicationIPInit( void );
-static void prvMiscInitialization( void )
-{
-    /* Initialize NVS */
-    esp_err_t ret = nvs_flash_init();
-
-    if( ( ret == ESP_ERR_NVS_NO_FREE_PAGES ) || ( ret == ESP_ERR_NVS_NEW_VERSION_FOUND ) )
-    {
-        ESP_ERROR_CHECK( nvs_flash_erase() );
-        ret = nvs_flash_init();
-    }
-
-    ESP_ERROR_CHECK( ret );
-
-    #if BLE_ENABLED
-        NumericComparisonInit();
-        spp_uart_init();
-    #endif
-
-    /* Create tasks that are not dependent on the WiFi being initialized. */
-    xLoggingTaskInitialize( mainLOGGING_TASK_STACK_SIZE,
-                            tskIDLE_PRIORITY + 5,
-                            mainLOGGING_MESSAGE_QUEUE_LENGTH );
-
-#if AFR_ESP_LWIP
-    configPRINTF( ("Initializing lwIP TCP stack\r\n") );
-    tcpip_adapter_init();
-#else
-    configPRINTF( ("Initializing FreeRTOS TCP stack\r\n") );
-    vApplicationIPInit();
-#endif
-}
 
 /*-----------------------------------------------------------*/
 
-#if BLE_ENABLED
-
-    #if CONFIG_NIMBLE_ENABLED == 1
-        esp_err_t prvBLEStackInit( void )
-        {
-            return ESP_OK;
-        }
-
-
-        esp_err_t xBLEStackTeardown( void )
-        {
-            esp_err_t xRet;
-
-            xRet = esp_bt_controller_mem_release( ESP_BT_MODE_BLE );
-
-            return xRet;
-        }
-
-    #else /* if CONFIG_NIMBLE_ENABLED == 1 */
-
-        static esp_err_t prvBLEStackInit( void )
-        {
-            return ESP_OK;
-        }
-
-        esp_err_t xBLEStackTeardown( void )
-        {
-            esp_err_t xRet = ESP_OK;
-
-            if( esp_bluedroid_get_status() == ESP_BLUEDROID_STATUS_ENABLED )
-            {
-                xRet = esp_bluedroid_disable();
-            }
-
-            if( xRet == ESP_OK )
-            {
-                xRet = esp_bluedroid_deinit();
-            }
-
-            if( xRet == ESP_OK )
-            {
-                if( esp_bt_controller_get_status() == ESP_BT_CONTROLLER_STATUS_ENABLED )
-                {
-                    xRet = esp_bt_controller_disable();
-                }
-            }
-
-            if( xRet == ESP_OK )
-            {
-                xRet = esp_bt_controller_deinit();
-            }
-
-            if( xRet == ESP_OK )
-            {
-                xRet = esp_bt_controller_mem_release( ESP_BT_MODE_BLE );
-            }
-
-            if( xRet == ESP_OK )
-            {
-                xRet = esp_bt_controller_mem_release( ESP_BT_MODE_BTDM );
-            }
-
-            return xRet;
-        }
-    #endif /* if CONFIG_NIMBLE_ENABLED == 1 */
-#endif /* if BLE_ENABLED */
 
 /*-----------------------------------------------------------*/
 
-#if BLE_ENABLED
-    static void spp_uart_init( void )
-    {
-        uart_config_t uart_config =
-        {
-            .baud_rate           = 115200,
-            .data_bits           = UART_DATA_8_BITS,
-            .parity              = UART_PARITY_DISABLE,
-            .stop_bits           = UART_STOP_BITS_1,
-            .flow_ctrl           = UART_HW_FLOWCTRL_RTS,
-            .rx_flow_ctrl_thresh = 122,
-        };
 
-        /* Set UART parameters */
-        uart_param_config( UART_NUM_0, &uart_config );
-        /*Set UART pins */
-        uart_set_pin( UART_NUM_0, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE );
-        /*Install UART driver, and get the queue. */
-        uart_driver_install( UART_NUM_0, 4096, 8192, 10, &spp_uart_queue, 0 );
-    }
 
 /*-----------------------------------------------------------*/
 
-    BaseType_t getUserMessage( INPUTMessage_t * pxINPUTmessage,
-                               TickType_t xAuthTimeout )
-    {
-        uart_event_t xEvent;
-        BaseType_t xReturnMessage = pdFALSE;
+/*-----------------------------------------------------------*/
 
-        if( xQueueReceive( spp_uart_queue, ( void * ) &xEvent, ( portTickType ) xAuthTimeout ) )
-        {
-            switch( xEvent.type )
-            {
-                /*Event of UART receiving data */
-                case UART_DATA:
-
-                    if( xEvent.size )
-                    {
-                        pxINPUTmessage->pcData = ( uint8_t * ) malloc( sizeof( uint8_t ) * xEvent.size );
-
-                        if( pxINPUTmessage->pcData != NULL )
-                        {
-                            memset( pxINPUTmessage->pcData, 0x0, xEvent.size );
-                            uart_read_bytes( UART_NUM_0, ( uint8_t * ) pxINPUTmessage->pcData, xEvent.size, portMAX_DELAY );
-                            xReturnMessage = pdTRUE;
-                        }
-                        else
-                        {
-                            configPRINTF( ( "Malloc failed in main.c\n" ) );
-                        }
-                    }
-
-                    break;
-
-                default:
-                    break;
-            }
-        }
-
-        return xReturnMessage;
-    }
-#endif /* if BLE_ENABLED */
 
 /*-----------------------------------------------------------*/
 
@@ -332,29 +81,225 @@ void vApplicationDaemonTaskStartupHook( void )
 {
 }
 
-#if !AFR_ESP_LWIP
-/*-----------------------------------------------------------*/
-void vApplicationIPNetworkEventHook( eIPCallbackEvent_t eNetworkEvent )
+
+//================= BLT Code =============================
+#include <stdint.h>
+#include <string.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include "nvs.h"
+#include "nvs_flash.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "esp_log.h"
+#include "esp_bt.h"
+#include "esp_bt_main.h"
+#include "esp_gap_bt_api.h"
+#include "esp_bt_device.h"
+#include "esp_spp_api.h"
+
+#include "time.h"
+#include "sys/time.h"
+esp_err_t esp_bt_gap_ssp_confirm_reply(esp_bd_addr_t bd_addr, bool accept);
+esp_err_t esp_bt_gap_set_security_param(esp_bt_sp_param_t param_type,
+                                        void *value, uint8_t len);
+#define SPP_TAG "SPP_ACCEPTOR_DEMO"
+#define SPP_SERVER_NAME "SPP_SERVER"
+#define EXCAMPLE_DEVICE_NAME "ESP_SPP_BT"
+#define SPP_SHOW_DATA 0
+#define SPP_SHOW_SPEED 1
+#define SPP_SHOW_MODE SPP_SHOW_DATA    /*Choose show mode: show data or speed*/
+
+static const esp_spp_mode_t esp_spp_mode = ESP_SPP_MODE_CB;
+
+static struct timeval time_new, time_old;
+static long data_num = 0;
+
+static const esp_spp_sec_t sec_mask = ESP_SPP_SEC_AUTHENTICATE;
+static const esp_spp_role_t role_slave = ESP_SPP_ROLE_SLAVE;
+
+
+#if (SPP_SHOW_MODE == SPP_SHOW_DATA)
+#define SPP_DATA_LEN 20
+#else
+#define SPP_DATA_LEN ESP_SPP_MAX_MTU
+#endif
+static uint8_t spp_data[] = "Hello From ESP BT\n";
+static void print_speed(void)
 {
-    uint32_t ulIPAddress, ulNetMask, ulGatewayAddress, ulDNSServerAddress;
-    system_event_t evt;
+    float time_old_s = time_old.tv_sec + time_old.tv_usec / 1000000.0;
+    float time_new_s = time_new.tv_sec + time_new.tv_usec / 1000000.0;
+    float time_interval = time_new_s - time_old_s;
+    float speed = data_num * 8 / time_interval / 1000.0;
+    ESP_LOGI(SPP_TAG, "speed(%fs ~ %fs): %f kbit/s" , time_old_s, time_new_s, speed);
+    data_num = 0;
+    time_old.tv_sec = time_new.tv_sec;
+    time_old.tv_usec = time_new.tv_usec;
+}
 
-    if( eNetworkEvent == eNetworkUp )
-    {
-        /* Print out the network configuration, which may have come from a DHCP
-         * server. */
-        FreeRTOS_GetAddressConfiguration(
-            &ulIPAddress,
-            &ulNetMask,
-            &ulGatewayAddress,
-            &ulDNSServerAddress );
-
-        evt.event_id = SYSTEM_EVENT_STA_GOT_IP;
-        evt.event_info.got_ip.ip_changed = true;
-        evt.event_info.got_ip.ip_info.ip.addr = ulIPAddress;
-        evt.event_info.got_ip.ip_info.netmask.addr = ulNetMask;
-        evt.event_info.got_ip.ip_info.gw.addr = ulGatewayAddress;
-        esp_event_send( &evt );
+static void esp_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
+{
+    switch (event) {
+    case ESP_SPP_INIT_EVT:
+        ESP_LOGI(SPP_TAG, "ESP_SPP_INIT_EVT");
+        esp_bt_dev_set_device_name(EXCAMPLE_DEVICE_NAME);
+        esp_bt_gap_set_scan_mode(ESP_BT_SCAN_MODE_CONNECTABLE_DISCOVERABLE);
+        esp_spp_start_srv(sec_mask,role_slave, 0, SPP_SERVER_NAME);
+        break;
+    case ESP_SPP_DISCOVERY_COMP_EVT:
+        ESP_LOGI(SPP_TAG, "ESP_SPP_DISCOVERY_COMP_EVT");
+        break;
+    case ESP_SPP_OPEN_EVT:
+        ESP_LOGI(SPP_TAG, "ESP_SPP_OPEN_EVT");
+        break;
+    case ESP_SPP_CLOSE_EVT:
+        ESP_LOGI(SPP_TAG, "ESP_SPP_CLOSE_EVT");
+        break;
+    case ESP_SPP_START_EVT:
+        ESP_LOGI(SPP_TAG, "ESP_SPP_START_EVT");
+        break;
+    case ESP_SPP_CL_INIT_EVT:
+        ESP_LOGI(SPP_TAG, "ESP_SPP_CL_INIT_EVT");
+        break;
+    case ESP_SPP_DATA_IND_EVT:
+#if (SPP_SHOW_MODE == SPP_SHOW_DATA)
+        ESP_LOGI(SPP_TAG, "ESP_SPP_DATA_IND_EVT len=%d handle=%d",
+                 param->data_ind.len, param->data_ind.handle);
+        esp_log_buffer_hex("",param->data_ind.data,param->data_ind.len);
+        esp_spp_write(param->srv_open.handle, sizeof(spp_data) - 1, spp_data);
+#else
+        gettimeofday(&time_new, NULL);
+        data_num += param->data_ind.len;
+        if (time_new.tv_sec - time_old.tv_sec >= 3) {
+            print_speed();
+        }
+#endif
+        break;
+    case ESP_SPP_CONG_EVT:
+        ESP_LOGI(SPP_TAG, "ESP_SPP_CONG_EVT");
+        break;
+    case ESP_SPP_WRITE_EVT:
+        ESP_LOGI(SPP_TAG, "ESP_SPP_WRITE_EVT");
+        break;
+    case ESP_SPP_SRV_OPEN_EVT:
+        ESP_LOGI(SPP_TAG, "ESP_SPP_SRV_OPEN_EVT");
+        gettimeofday(&time_old, NULL);
+        break;
+    default:
+        break;
     }
 }
+
+void esp_bt_gap_cb(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t *param)
+{
+    switch (event) {
+    case ESP_BT_GAP_AUTH_CMPL_EVT:{
+        if (param->auth_cmpl.stat == ESP_BT_STATUS_SUCCESS) {
+            ESP_LOGI(SPP_TAG, "authentication success: %s", param->auth_cmpl.device_name);
+            esp_log_buffer_hex(SPP_TAG, param->auth_cmpl.bda, ESP_BD_ADDR_LEN);
+        } else {
+            ESP_LOGE(SPP_TAG, "authentication failed, status:%d", param->auth_cmpl.stat);
+        }
+        break;
+    }
+    case ESP_BT_GAP_PIN_REQ_EVT:{
+        ESP_LOGI(SPP_TAG, "ESP_BT_GAP_PIN_REQ_EVT min_16_digit:%d", param->pin_req.min_16_digit);
+        if (param->pin_req.min_16_digit) {
+            ESP_LOGI(SPP_TAG, "Input pin code: 0000 0000 0000 0000");
+            esp_bt_pin_code_t pin_code = {0};
+            esp_bt_gap_pin_reply(param->pin_req.bda, true, 16, pin_code);
+        } else {
+            ESP_LOGI(SPP_TAG, "Input pin code: 1234");
+            esp_bt_pin_code_t pin_code;
+            pin_code[0] = '1';
+            pin_code[1] = '2';
+            pin_code[2] = '3';
+            pin_code[3] = '4';
+            esp_bt_gap_pin_reply(param->pin_req.bda, true, 4, pin_code);
+        }
+        break;
+    }
+
+#if (CONFIG_BT_SSP_ENABLED == true)
+    case ESP_BT_GAP_CFM_REQ_EVT:
+        ESP_LOGI(SPP_TAG, "ESP_BT_GAP_CFM_REQ_EVT Please compare the numeric value: %d", param->cfm_req.num_val);
+        esp_bt_gap_ssp_confirm_reply(param->cfm_req.bda, true);
+        break;
+    case ESP_BT_GAP_KEY_NOTIF_EVT:
+        ESP_LOGI(SPP_TAG, "ESP_BT_GAP_KEY_NOTIF_EVT passkey:%d", param->key_notif.passkey);
+        break;
+    case ESP_BT_GAP_KEY_REQ_EVT:
+        ESP_LOGI(SPP_TAG, "ESP_BT_GAP_KEY_REQ_EVT Please enter passkey!");
+        break;
 #endif
+
+    default: {
+        ESP_LOGI(SPP_TAG, "event: %d", event);
+        break;
+    }
+    }
+    return;
+}
+
+void app_main()
+{
+    esp_err_t ret = nvs_flash_init();
+    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        ret = nvs_flash_init();
+    }
+    ESP_ERROR_CHECK( ret );
+
+    ESP_ERROR_CHECK(esp_bt_controller_mem_release(ESP_BT_MODE_BLE));
+
+    esp_bt_controller_config_t bt_cfg = BT_CONTROLLER_INIT_CONFIG_DEFAULT();
+    if ((ret = esp_bt_controller_init(&bt_cfg)) != ESP_OK) {
+        ESP_LOGE(SPP_TAG, "%s initialize controller failed: %s\n", __func__, esp_err_to_name(ret));
+        return;
+    }
+
+    if ((ret = esp_bt_controller_enable(ESP_BT_MODE_CLASSIC_BT)) != ESP_OK) {
+        ESP_LOGE(SPP_TAG, "%s enable controller failed: %s\n", __func__, esp_err_to_name(ret));
+        return;
+    }
+
+    if ((ret = esp_bluedroid_init()) != ESP_OK) {
+        ESP_LOGE(SPP_TAG, "%s initialize bluedroid failed: %s\n", __func__, esp_err_to_name(ret));
+        return;
+    }
+
+    if ((ret = esp_bluedroid_enable()) != ESP_OK) {
+        ESP_LOGE(SPP_TAG, "%s enable bluedroid failed: %s\n", __func__, esp_err_to_name(ret));
+        return;
+    }
+
+    if ((ret = esp_bt_gap_register_callback(esp_bt_gap_cb)) != ESP_OK) {
+        ESP_LOGE(SPP_TAG, "%s gap register failed: %s\n", __func__, esp_err_to_name(ret));
+        return;
+    }
+
+    if ((ret = esp_spp_register_callback(esp_spp_cb)) != ESP_OK) {
+        ESP_LOGE(SPP_TAG, "%s spp register failed: %s\n", __func__, esp_err_to_name(ret));
+        return;
+    }
+
+    if ((ret = esp_spp_init(esp_spp_mode)) != ESP_OK) {
+        ESP_LOGE(SPP_TAG, "%s spp init failed: %s\n", __func__, esp_err_to_name(ret));
+        return;
+    }
+
+#if (CONFIG_BT_SSP_ENABLED == true)
+    /* Set default parameters for Secure Simple Pairing */
+    esp_bt_sp_param_t param_type = ESP_BT_SP_IOCAP_MODE;
+    esp_bt_io_cap_t iocap = ESP_BT_IO_CAP_IO;
+    esp_bt_gap_set_security_param(param_type, &iocap, sizeof(uint8_t));
+#endif
+
+    /*
+     * Set default parameters for Legacy Pairing
+     * Use variable pin, input pin code when pairing
+     */
+    esp_bt_pin_type_t pin_type = ESP_BT_PIN_TYPE_VARIABLE;
+    esp_bt_pin_code_t pin_code;
+    esp_bt_gap_set_pin(pin_type, 0, pin_code);
+}

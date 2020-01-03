@@ -300,6 +300,12 @@ if(AFR_ENABLE_DEMOS OR AFR_ENABLE_TESTS)
     add_executable(
         ${exe_target}
         "${board_dir}/application_code/main.c"
+        "/home/wahdan/Desktop/amazon-freertos/vendors/espressif/esp-idf/components/bt/bluedroid/api/esp_gap_bt_api.c"
+        "/home/wahdan/Desktop/amazon-freertos/vendors/espressif/esp-idf/components/bt/bluedroid/api/esp_bt_main.c"
+        "/home/wahdan/Desktop/amazon-freertos/vendors/espressif/esp-idf/components/bt/bluedroid/osi/future.c"
+        "/home/wahdan/Desktop/amazon-freertos/vendors/espressif/esp-idf/components/bt/bluedroid/osi/semaphore.c"
+        "/home/wahdan/Desktop/amazon-freertos/vendors/espressif/esp-idf/components/bt/bluedroid/btc/core/btc_main.c"
+        "/home/wahdan/Desktop/amazon-freertos/vendors/espressif/esp-idf/components/bt/bluedroid/btc/core/btc_task.c"
         ${extra_exe_sources}
     )
     target_include_directories(
@@ -307,6 +313,15 @@ if(AFR_ENABLE_DEMOS OR AFR_ENABLE_TESTS)
         PUBLIC
             $<TARGET_PROPERTY:AFR::kernel,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:AFR::ble_hal::mcu_port,INTERFACE_INCLUDE_DIRECTORIES>
+            /home/wahdan/Desktop/amazon-freertos/vendors/espressif/esp-idf/components/bt/bluedroid/common/include
+            /home/wahdan/Desktop/amazon-freertos/vendors/espressif/esp-idf/components/bt/bluedroid/stack/include
+            /home/wahdan/Desktop/amazon-freertos/vendors/espressif/esp-idf/components/bt/bluedroid/btc/include
+            /home/wahdan/Desktop/amazon-freertos/vendors/espressif/esp-idf/components/bt/bluedroid/bta/include
+            /home/wahdan/Desktop/amazon-freertos/vendors/espressif/esp-idf/components/bt/bluedroid/osi/include
+            /home/wahdan/Desktop/amazon-freertos/vendors/espressif/esp-idf/components/bt/bluedroid/btc/profile/std/include
+            /home/wahdan/Desktop/amazon-freertos/vendors/espressif/esp-idf/components/bt/bluedroid/btc/profile/esp/include
+            /home/wahdan/Desktop/amazon-freertos/vendors/espressif/esp-idf/components/bt/bluedroid/bta/gatt/include
+            /home/wahdan/Desktop/amazon-freertos/vendors/espressif/esp-idf/components/bt/bluedroid/bta/dm/include
     )
     target_link_libraries(
         ${exe_target}

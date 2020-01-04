@@ -77,7 +77,7 @@
 #endif
 
 #ifndef CONFIG_ESP32_APPTRACE_ENABLE
-    #define configMINIMAL_STACK_SIZE		768
+    #define configMINIMAL_STACK_SIZE		4096
 #else
     /* The apptrace module requires at least 2KB of stack per task. */
     #define configMINIMAL_STACK_SIZE		2048

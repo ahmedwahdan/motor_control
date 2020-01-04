@@ -322,6 +322,7 @@ if(AFR_ENABLE_DEMOS OR AFR_ENABLE_TESTS)
             /home/wahdan/Desktop/amazon-freertos/vendors/espressif/esp-idf/components/bt/bluedroid/btc/profile/esp/include
             /home/wahdan/Desktop/amazon-freertos/vendors/espressif/esp-idf/components/bt/bluedroid/bta/gatt/include
             /home/wahdan/Desktop/amazon-freertos/vendors/espressif/esp-idf/components/bt/bluedroid/bta/dm/include
+            /home/wahdan/Desktop/amazon-freertos/libraries/3rdparty/jsmn/
     )
     target_link_libraries(
         ${exe_target}

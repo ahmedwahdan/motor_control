@@ -100,6 +100,7 @@ void vApplicationDaemonTaskStartupHook( void )
 
 #include "time.h"
 #include "sys/time.h"
+#include "jsmn.h"
 
 #define SPP_TAG "SPP_ACCEPTOR_DEMO"
 #define SPP_SERVER_NAME "SPP_SERVER"
@@ -115,7 +116,7 @@ static long data_num = 0;
 
 static const esp_spp_sec_t sec_mask = ESP_SPP_SEC_AUTHENTICATE;
 static const esp_spp_role_t role_slave = ESP_SPP_ROLE_SLAVE;
-
+void parse(uint8_t  *json_data, uint16_t json_data_len);
 
 #if (SPP_SHOW_MODE == SPP_SHOW_DATA)
 #define SPP_DATA_LEN 20
@@ -163,7 +164,9 @@ static void esp_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
 #if (SPP_SHOW_MODE == SPP_SHOW_DATA)
         ESP_LOGI(SPP_TAG, "ESP_SPP_DATA_IND_EVT len=%d handle=%d",
                  param->data_ind.len, param->data_ind.handle);
-        esp_log_buffer_hex("",param->data_ind.data,param->data_ind.len);
+        //ESP_LOG_BUFFER_CHAR("",param->data_ind.data,param->data_ind.len);
+        parse(param->data_ind.data, param->data_ind.len);
+        ESP_LOGI(SPP_TAG, "Succedded to parse JSON: \n");
         esp_spp_write(param->srv_open.handle, sizeof(spp_data) - 1, spp_data);
 #else
         gettimeofday(&time_new, NULL);
@@ -238,7 +241,8 @@ void esp_bt_gap_cb(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t *param)
     }
     return;
 }
-
+    jsmntok_t t[128]; /* We expect no more than 128 JSON tokens */
+jsmn_parser p;
 void app_main()
 {
     esp_err_t ret = nvs_flash_init();
@@ -300,4 +304,120 @@ void app_main()
     esp_bt_pin_type_t pin_type = ESP_BT_PIN_TYPE_VARIABLE;
     esp_bt_pin_code_t pin_code;
     esp_bt_gap_set_pin(pin_type, 0, pin_code);
+}
+
+
+
+
+static int jsoneq(const char *json, jsmntok_t *tok, const char *s) {
+  if (tok->type == JSMN_STRING && (int)strlen(s) == tok->end - tok->start &&
+      strncmp(json + tok->start, s, tok->end - tok->start) == 0) {
+    return 0;
+  }
+  return -1;
+}
+uint32_t motor_data[10];
+char buffer[50]; 
+typedef enum
+{
+    SH  = 0,
+    SV  = 1,
+    STP = 2,
+    M1  = 3,
+    M2  = 4,
+    M3  = 5
+}Data_Json_Token_t;
+void parse(uint8_t  *json_data, uint16_t json_data_len)
+{
+    
+    int i;
+    int r;
+    jsmn_init(&p);
+    r = jsmn_parse(&p, (const char *)json_data, json_data_len, t, 128);
+    ESP_LOGI("myTag", "Tokens nuber %d\n", r);
+    if (r > 0) 
+    {
+        ESP_LOGI("myTag", "Tokens nuber %d\n", r);
+       for (i = 1; i < r; i++) 
+       {    ESP_LOGI("myTagyyy","- User: %.*s\n", t[i].end - t[i].start,
+                    (const char *)json_data+ t[i].start);
+            if (jsoneq((const char *)json_data, &t[i], "sh") == 0) 
+            {
+                /* We may use strndup() to fetch string value */
+                ESP_LOGI("myTag","- sh: %.*s\n", t[i + 1].end - t[i + 1].start,
+                    (const char *)json_data+ t[i + 1].start);
+                sprintf(buffer, "%.*s", t[i + 1].end - t[i + 1].start,
+                    (const char *)json_data+ t[i + 1].start);
+                ESP_LOGI("Integer", " value : %d", atoi(buffer));
+                motor_data[SH] = atoi(buffer);
+                i++;
+            } 
+            else if (jsoneq((const char *)json_data, &t[i], "sv") == 0)
+            {
+                /* We may additionally check if the value is either "true" or "false" */
+                ESP_LOGI("myTag","- sv: %.*s\n", t[i + 1].end - t[i + 1].start,
+                        (const char *)json_data+ t[i + 1].start);
+                sprintf(buffer, "%.*s", t[i + 1].end - t[i + 1].start,
+                    (const char *)json_data+ t[i + 1].start);
+                ESP_LOGI("Integer", " value : %d", atoi(buffer));
+                motor_data[SV] = atoi(buffer);
+                i++;
+            } 
+            else if (jsoneq((const char *)json_data, &t[i], "stp") == 0)
+            {
+                /* We may want to do strtol() here to get numeric value */
+                ESP_LOGI("myTag","- stp: %.*s\n", t[i + 1].end - t[i + 1].start,
+                 (const char *)json_data+ t[i + 1].start);
+                sprintf(buffer, "%.*s", t[i + 1].end - t[i + 1].start,
+                    (const char *)json_data+ t[i + 1].start);
+                ESP_LOGI("Integer", " value : %d", atoi(buffer));
+                motor_data[STP] = atoi(buffer);
+                i++;
+            }
+            else if (jsoneq((const char *)json_data, &t[i], "m1") == 0)
+            {
+                /* We may want to do strtol() here to get numeric value */
+                ESP_LOGI("myTag","- m1: %.*s\n", t[i + 1].end - t[i + 1].start,
+                 (const char *)json_data+ t[i + 1].start);
+                sprintf(buffer, "%.*s", t[i + 1].end - t[i + 1].start,
+                    (const char *)json_data+ t[i + 1].start);
+                ESP_LOGI("Integer", " value : %d", atoi(buffer));
+                motor_data[M1] = atoi(buffer);
+                i++;
+            } 
+            else if (jsoneq((const char *)json_data, &t[i], "m2") == 0)
+            {
+                /* We may want to do strtol() here to get numeric value */
+                ESP_LOGI("myTag","- m2: %.*s\n", t[i + 1].end - t[i + 1].start,
+                 (const char *)json_data+ t[i + 1].start);
+                sprintf(buffer, "%.*s", t[i + 1].end - t[i + 1].start,
+                    (const char *)json_data+ t[i + 1].start);
+                ESP_LOGI("Integer", " value : %d", atoi(buffer));
+                motor_data[M2] = atoi(buffer);
+                i++;
+            }
+            else if (jsoneq((const char *)json_data, &t[i], "m3") == 0)
+            {
+                /* We may want to do strtol() here to get numeric value */
+                ESP_LOGI("myTag","- m3: %.*s\n", t[i + 1].end - t[i + 1].start,
+                 (const char *)json_data+ t[i + 1].start);
+                sprintf(buffer, "%.*s", t[i + 1].end - t[i + 1].start,
+                    (const char *)json_data+ t[i + 1].start);
+                ESP_LOGI("Integer", " value : %d", atoi(buffer));
+                motor_data[M3] = atoi(buffer);
+                i++;
+            }
+            else
+            {
+                ESP_LOGI("myTag","Unexpected key: %.*s\n", t[i].end - t[i].start,
+                 (const char *)json_data+ t[i].start);
+            }
+        } 
+    }
+
+    for(i = 0; i < 6; i++)
+    {
+        ESP_LOGI("Data", "Value %d = %d", i, motor_data[i]);
+    }
+    
 }
